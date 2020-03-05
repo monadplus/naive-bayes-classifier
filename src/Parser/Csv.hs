@@ -7,22 +7,21 @@ module Parser.Csv
 --------------------------------------------------------------
 
 import           Control.Monad.Except
---import qualified Data.ByteString.Lazy       as LBS
 import qualified Data.ByteString.Lazy.Char8 as LBSC
-import           Data.Csv                   (HasHeader(..))
+import           Data.Csv                   (HasHeader (..))
 import qualified Data.Csv                   as Csv
-import           Data.Vector
+import qualified Data.Vector                as V
 import qualified System.FilePath            as FP
 
 --------------------------------------------------------------
 
 parseCsvFile
     :: Csv.FromRecord a
-    => FilePath -> HasHeader -> ExceptT String IO (Vector a)
+    => FilePath -> HasHeader -> ExceptT String IO [a]
 parseCsvFile fp hasHeader = do
   liftEither (checkExtension fp)
   lbs <- liftIO (LBSC.readFile fp)
-  liftEither (Csv.decode hasHeader lbs)
+  liftEither $ fmap V.toList (Csv.decode hasHeader lbs)
 
 csvExtension :: String
 csvExtension = ".csv"
