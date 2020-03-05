@@ -1,5 +1,6 @@
 { mkDerivation, async, base, bytestring, containers, directory, filepath
-, mtl, stdenv, stm, text, time, hspec, QuickCheck, statistics
+, mtl, stdenv, stm, text, time, hspec, QuickCheck, statistics, cassava
+, vector
 }:
 mkDerivation {
   pname = "naive-bayes-classifier";
@@ -10,6 +11,7 @@ mkDerivation {
   executableHaskellDepends = [ base ];
   libraryHaskellDepends = [
     async bytestring containers directory filepath mtl stm text time statistics
+    cassava vector
   ];
   testHaskellDepends = [
     base hspec QuickCheck

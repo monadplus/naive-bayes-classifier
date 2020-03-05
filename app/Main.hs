@@ -1,10 +1,17 @@
+{-# LANGUAGE TypeApplications #-}
 module Main where
 
-import DataSet
+import Parser.Csv
+import Data
 
 main :: IO ()
-main = do
-  let hasHeader = True
-      fp = "./titanicTr.txt"
-  samples <- readDataSet fp hasHeader
-  print samples
+main = runClassifier
+
+runClassifier :: IO ()
+runClassifier = do
+  r <- runExceptT $ do
+          v <- parseCsvFile @Sample "./datasets/winequality-red.csv" HasHeader
+          liftIO $ print v
+  case r of
+    Left err -> print ("An error occured: " ++ show err)
+    Right _  -> return ()
