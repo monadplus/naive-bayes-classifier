@@ -1,16 +1,15 @@
 {-# LANGUAGE DeriveGeneric   #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE RankNTypes #-}
-module Validation
-  ( module Validation
+module Validation (
+    Score(..)
+  , crossValidation
+  , validateSamples
   ) where
 
 import           Classifier
 import           Data.Foldable
 import           Data.Proxy
-import           Types
 
 -- | Accuracy score of a classifier.
 data Score = Score
@@ -31,19 +30,25 @@ instance Monoid Score where
   --show score =
     --"Score: " ++ show (getAccuracy score * 100) ++ " % accuracy"
 
+--getAccuracy :: Score -> Double
+--getAccuracy Score{..} = fromIntegral(hit) / fromIntegral(total)
+
+
 hit' :: Score
 hit' = mempty{ hit = 1, total = 1}
 
 miss' :: Score
 miss' = mempty{ miss = 1, total = 1}
 
-getAccuracy :: Score -> Double
-getAccuracy Score{..} = fromIntegral(hit) / fromIntegral(total)
-
 type TrainingSet = [(Sample, Class)]
 
 type TestSet = [(Sample, Class)]
 
+-- | X-Validation testing algorithm
+--
+-- Notice that every subset of <training, test> is different and generates a new classifier,
+-- so the score is not for a single classifier, but for many.
+-- Let's assume this is ok to simplify things.
 crossValidation
     :: forall c. Classifier c
     => [(Sample, Class)] -- ^ All Samples
@@ -64,6 +69,21 @@ crossValidation allSamples _ =
          in
             if pClazz == clazz then hit' else miss'
 
+
+validateSamples :: [(Sample, Class)] -> Either Error ()
+validateSamples samplesAndClasses = do
+  let samples = fmap fst samplesAndClasses
+      Sample features = head samples
+      expectedLength = length features
+   in forM_ (tail samples) $ \sample@(Sample features') -> do
+         if length features' /= expectedLength
+           then Left ("Length of features is different for sample: " ++ show sample)
+           else Right ()
+         if any (\(f1, f2) -> not (f1 `eqv` f2)) (zip features features')
+           then Left ("Sample with not the same type of features: " ++ show sample)
+           else Right ()
+
+----------------------------------------------------------
 
 -- | Generate at least n groups
 groupBy' :: Int -> [a] -> [[a]]

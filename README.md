@@ -40,4 +40,19 @@ The Naive Bayes algorithm has proven effective and therefore is popular for __te
 ### Data Sets
 
 - Wine Quality: https://www.kaggle.com/uciml/red-wine-quality-cortez-et-al-2009#winequality-red.csv
-- Titanic: unknown
+- Wine Origin: https://archive.ics.uci.edu/ml/datasets/Wine
+
+The results are the following:
+
+
+```
+---------Dataset: wine-quality
+#Classes: 6
+#Total of samples: 1599
+Score {hit = 878, miss = 721, total = 1599}
+
+---------Dataset: wine-origin
+#Classes: 3
+#Total of samples: 178
+Score {hit = 170, miss = 8, total = 178}
+```

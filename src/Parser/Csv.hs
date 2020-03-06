@@ -1,5 +1,6 @@
-module Parser.Csv
-  ( module Parser.Csv
+module Parser.Csv (
+    parseCsvFile
+    -- * Reexports
   , module Data.Csv
   , module Control.Monad.Except
   ) where

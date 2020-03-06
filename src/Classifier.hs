@@ -1,117 +1,130 @@
-{-# LANGUAGE InstanceSigs #-}
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE TupleSections #-}
-module Classifier where
+{-# LANGUAGE DeriveGeneric              #-}
+{-# LANGUAGE DerivingStrategies         #-}
+{-# LANGUAGE GADTs                      #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE InstanceSigs               #-}
+{-# LANGUAGE RankNTypes                 #-}
+{-# LANGUAGE RecordWildCards            #-}
+{-# LANGUAGE TupleSections              #-}
+{-# OPTIONS_GHC -Wno-orphans #-}
+module Classifier (
+  -- * Data Types/Constructors & utilities
+    Class(..)
+  , extractClass
+  , Classifier(..)
+  , Feature(..)
+  , Probability(..)
+  , Sample(..)
 
---import Statistics.Distribution
---import Statistics.Distribution.Normal
-import Types
-import Data.Set (Set)
-import qualified Data.Set as Set
-import qualified System.Random as R
-import           System.IO.Unsafe (unsafePerformIO)
+  -- * Equivalent Type Class
+  , Eqv(..)
+
+  -- * Type Synonyms
+  , Error
+  , Index
+  ) where
+
+------------------------------------------------------------
+
+import           Control.Applicative ((<|>))
+import qualified Data.Csv            as Csv
+import           Data.Text           (Text)
+import qualified Data.Text           as Text
+import           GHC.Generics
+
+------------------------------------------------------------
 
 class Classifier c where
   -- | Given a training set returns a trained classifier
   train :: [(Sample, Class)] -> c
   -- | Given a random sample, predict a class
-  predict :: Sample -> c -> [(Class, Probability)] -- ^ TODO ordered ?
+  predict :: Sample -> c -> [(Class, Probability)]
 
--- # fit a probability distribution to a univariate data sample
--- def fit_distribution(data):
--- 	# estimate parameters
--- 	mu = mean(data)
--- 	sigma = std(data)
--- 	print(mu, sigma)
--- 	# fit distribution
--- 	dist = norm(mu, sigma)
--- 	return dist
+-- | Sample feature
+data Feature
+  = Binary      Bool       -- ^ Binomial Naive Bayes
+  | Categorical Text       -- ^ Multinomial Naive Bayes
+  | Numeric     Double     -- ^ Gaussian Naive Bayes
+  deriving (Show)
+
+instance Eqv Feature where
+  Binary _ `eqv` Binary _ = True
+  Categorical _ `eqv` Categorical _ = True
+  Numeric _ `eqv` Numeric _ = True
+  _ `eqv` _ = False
+
+instance Csv.FromField Feature where
+  parseField :: Csv.Field -> Csv.Parser Feature
+  parseField f =  (Binary <$> Csv.parseField f)
+              <|> (Numeric <$> Csv.parseField f)
+              <|> (Categorical <$> Csv.parseField f)
+
+newtype Sample = Sample { _features :: [Feature]  }
+  deriving (Show, Generic)
+  deriving newtype (Csv.FromRecord)
+
+-- | Class which the variable X belongs.
 --
--- # calculate the independent conditional probability
--- def probability(X, prior, dist1, dist2):
--- 	return prior * dist1.pdf(X[0]) * dist2.pdf(X[1])
+-- You usually want to classify your variables/samples in the given classes.
+newtype Class = Class { label :: Text }
+  deriving (Show, Ord, Eq)
+
+-- | Extract the class in the index i from the features of the sample.
+-- And returns, if everything goes well, the class and
+-- the updated features w/o the class feature.
+extractClass :: Int -> Sample -> Either Error (Sample, Class)
+extractClass i Sample{..} = do
+  let (l, r') = splitAt i _features
+  feature <-
+    if null r'
+      then Left "Index out of Bounds"
+      else Right (head r')
+  let r       = tail r'
+      sample' = Sample { _features = l ++ r }
+  c <- featureToClass feature
+  return (sample', c)
+
+featureToClass :: Feature -> Either Error Class
+featureToClass (Binary b) = Right $ Class (showText b)
+featureToClass (Categorical c) = Right $ Class c
+featureToClass (Numeric n) =
+  if (fromIntegral ((floor n)::Int) == n)
+    then Right $ Class (showText (floor n :: Int))
+    else Left ("Don't use real values as categorical classes!")
+
+-- | Probability in [0,1]
+newtype Probability = Probability { _probability :: Double }
+  deriving (Show)
+  deriving newtype (Num)
+
+---------------------------------------------
+
+type Error = String
+
+type Index = Int
+
+---------------------------------------------
+
+class Eqv a where
+  eqv :: a -> a -> Bool
+
+-----------------------------------------------------
+
+showText :: Show a => a -> Text
+showText = Text.pack . show
+
+------------------------------------------------------
+-- Orphan instances.
+
+-- | Bool can be represented in several ways in a CSV:
+--    * "true","false"
+--    * 0, 1
 --
--- # generate 2d classification dataset
--- X, y = make_blobs(n_samples=100, centers=2, n_features=2, random_state=1)
---
--- # sort data into classes
--- Xy0 = X[y == 0]
--- Xy1 = X[y == 1]
---
--- # calculate priors
--- priory0 = len(Xy0) / len(X)
--- priory1 = len(Xy1) / len(X)
---
--- # create PDFs for y==0
--- distX1y0 = fit_distribution(Xy0[:, 0])
--- distX2y0 = fit_distribution(Xy0[:, 1])
--- # create PDFs for y==1
--- distX1y1 = fit_distribution(Xy1[:, 0])
--- distX2y1 = fit_distribution(Xy1[:, 1])
---
--- # classify one example
--- Xsample, ysample = X[0], y[0]
--- py0 = probability(Xsample, priory0, distX1y0, distX2y0)
--- py1 = probability(Xsample, priory1, distX1y1, distX2y1)
--- print('P(y=0 | %s) = %.3f' % (Xsample, py0*100))
--- print('P(y=1 | %s) = %.3f' % (Xsample, py1*100))
--- print('Truth: y=%d' % ysample)
-
---------------------------------------------
-
-data Dummy = Dummy
-  { _classes :: Set Class
-  }
-
-instance Classifier Dummy where
-  train :: [(Sample, Class)] -> Dummy
-  train trainingSet = Dummy $ Set.fromList $ fmap (\(_, clazz) -> clazz) trainingSet
-
-  {-# INLINE train #-}
-  predict :: Sample -> Dummy -> [(Class, Probability)]
-  predict _ Dummy{..} =
-    let p = unsafePerformIO (R.getStdRandom R.random :: IO Double) -- [0,1)
-        winner = Set.elemAt (floor (p * fromIntegral (Set.size _classes))) _classes
-        remaining = fmap (, Probability 0) $ Set.toList (Set.delete winner _classes)
-     in (winner, Probability 1.0):remaining
-
---------------------------------------------
-
-data NaiveBayes = Int
-
-instance Classifier NaiveBayes where
-  train :: [(Sample, Class)] -> NaiveBayes
-  train = undefined
-  {-# INLINE train #-}
-
-  predict :: Sample -> NaiveBayes -> [(Class, Probability)]
-  predict = undefined
-  {-# INLINE predict #-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+-- I will assume the former to simplify things
+instance Csv.FromField Bool where
+  parseField f = do
+    t <- Csv.parseField @Text f
+    case Text.toLower t of
+      "true"  -> pure True
+      "false" -> pure False
+      _       -> fail "Not a boolean field."
