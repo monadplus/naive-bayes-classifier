@@ -1,58 +1,9 @@
 ## naive-bayes-classifier
 
-Joint probability is untractable.
+This is an _"experimental"_ project for the first delivery of [Algorithmics in Data Mining](https://www.fib.upc.edu/en/studies/masters/master-innovation-and-research-informatics/curriculum/syllabus/ADM-MIRI).
 
-Bayes Theorem:
+Please, read the attached [report](./report.pdf) for more information about:
 
-```
-P(A|B) = P(B|A) * P(A) / P(B)
-
-P(A|B) = "posterior"
-P(A) = "prior"
-```
-
-Classification as:
-
-```
-P(yi | x1, x2, …, xn) = P(x1, x2, …, xn | yi) * P(yi) / P(x1, x2, …, xn)
-```
-
-`P(yi)` can be easy computed but `P(x1, x2, …, xn | yi)` is not feasible.
-
-To simplify, we are going to consider each variable independent from each other.
-
-First, the denominator is removed from the calculation P(x1, x2, …, xn) as it is a constant used in calculating the conditional probability of each class for a given instance and has the effect of normalizing the result.
-
-```
-P(yi | x1, x2, …, xn) = P(x1, x2, …, xn | yi) * P(yi)
-```
-
-Next, the conditional probability of all variables given the class label is changed into separate conditional probabilities of each variable value given the class label. These independent conditional variables are then multiplied together. For example:
-
-```
-P(yi | x1, x2, …, xn) = P(x1|yi) * P(x2|yi) * … P(xn|yi) * P(yi)
-```
-
-The simplification of Bayes Theorem assuming independency of the variables is called __Naive Bayes__ and it is widely used as a classification predictive modeling.
-
-The Naive Bayes algorithm has proven effective and therefore is popular for __text classification tasks__. The words in a document may be encoded as binary (word present), count (word occurrence), or frequency (tf/idf) input vectors and binary, multinomial, or Gaussian probability distributions used respectively.
-
-### Data Sets
-
-- Wine Quality: https://www.kaggle.com/uciml/red-wine-quality-cortez-et-al-2009#winequality-red.csv
-- Wine Origin: https://archive.ics.uci.edu/ml/datasets/Wine
-
-The results are the following:
-
-
-```
----------Dataset: wine-quality
-#Classes: 6
-#Total of samples: 1599
-Score {hit = 878, miss = 721, total = 1599}
-
----------Dataset: wine-origin
-#Classes: 3
-#Total of samples: 178
-Score {hit = 170, miss = 8, total = 178}
-```
+- Naive Bayes Classifier.
+- The architecture of the project.
+- Compiling and Running the project.

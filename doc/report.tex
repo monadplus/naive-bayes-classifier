@@ -1,0 +1,376 @@
+\documentclass[12pt, a4paper]{article}
+
+\usepackage[utf8]{inputenc} % encoding
+\usepackage[english]{babel} % use special characters and also translates some elements within the document.
+
+%%%%% math packages
+
+\usepackage{amsmath} % a bunch of things
+\usepackage{amsthm} % \newtheorem, \proof, etc
+\usepackage{amssymb} % extended collection
+
+%%%%%%%%%%%%%%%%%%%%%%
+
+\usepackage{hyperref} % Hyperlinks \url{url} or \href{url}{name}
+\usepackage{parskip} % Par starts on left (not idented)
+\usepackage{abstract} % Abstract
+
+%%%%%%%%%%%%%%%%%%%%%%
+
+\renewcommand{\absnamepos}{flushleft}
+\setlength{\absleftindent}{0pt}
+\setlength{\absrightindent}{0pt}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{Arnau Abella}
+\lhead{ADM}
+\rfoot{Page \thepage}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\title{A Purely Functional Naive Bayes Classifier}
+\author{Arnau Abella}
+\date{\today}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\usepackage{xcolor} % Colours
+
+\definecolor{codegray}{rgb}{0.9, 0.9, 0.9}
+
+\usepackage{minted} % Code highlight
+
+%\begin{listing}[H]
+  %\begin{minted}[xleftmargin=20pt,linenos,bgcolor=codegray]{haskell}
+  %\end{minted}
+  %\caption{Example of a listing.}
+  %\label{lst:example} %  \ref{lst:example}
+%\end{listing}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+\noindent
+  This project provides a \textit{simple} implementation for the naive Bayes classifier in the purely functional programming language Haskell.
+  The project provides a library for modeling and trainining a naive Bayes classifier that can be used to predict, with a certain level of confidence, the label of a given arbitrary sample.
+\end{abstract}
+
+
+\section{Introduction} \label{introduction}
+
+\subsection{Probability Model} \label{probability-model}
+
+The naive Bayes is a conditional probability model: given a problem instance to be classifier, represented by a vector $x = (x_1, \dots , x_n)$ representing some $n$ features (independent variables), it assigns to this instance probabilities
+
+\[
+  p(C_k | x_1, \dots , x_n)
+\]
+
+for each of $k$ possible outcomes or \textit{classes} $C_k$.
+
+The problem with the above formulation is that if the number of features $n$ is large or if a feature can take on a large number of values, then basing such a model on probability tables is \textbf{infeasible}. We therefore reformulate the model to make it more tractable. Using \textbf{Bayes' theorem}, the conditional probability can be decomposed as
+
+\[
+  p(C_k | x) = \frac{p(C_k)p(x|C_k)}{p(x)}
+\]
+
+In practice, there is interest only in the numerator, because the denominator does not depend on $C$ and the values of the features $x_i$, so that denominator is effectively constant.
+
+We can rewrite the above expression, using the \textbf{chain rule}, as follows
+
+\begin{align*}
+  p(C_k, x_1, \dots , x_n) &= p(x_1, \dots, x_n) \\
+                           &= p(x_1 | x_2, \dots , x_n, C_k)p(x_2, \dots , x_n, C_k) \\
+                           &= \dots \\
+                           &= p(x_1 | x_2, \dots , x_n, C_k) \ \dots \ p(x_n | C_k) p(C_k)
+\end{align*}
+
+Now, we apply the \textbf{naive} assumption that all features in $x$ are \textbf{mutually independent}, conditional on the category $C_k$
+
+\[
+  p(x_i | x_{i+1}, \dots , x_n , C_k) = p(x_i | C_k)
+\]
+
+Hence, the joint model can be expressed as
+
+\begin{align*}
+  p(C_k | x_1, \dots , x_n) &\propto  p (C_k, x_1, \dots , x_n) \\
+                            &= p(C_k)p(x_1|C_k)p(x_2|C)p(x_3|C_k) \dots \\
+                            &= p(C_k)\prod_{i=1}^{n}p(x_i|C_k)
+\end{align*}
+
+where $\propto$ denotes proportionality.
+
+\subsection{The classifier} \label{the-classifier}
+
+Given the previous naive Bayes probability model, we can construct a classifier combining it with a \textbf{decision rule}.
+
+A common decision rule is \textit{MAP} decision rule (picking the hypoteshis that is most probable).
+
+The corresponding classifier, a Bayes classifier, is the function that assigns a class label $y = C_k$ for some $k$ as follows
+
+\[
+  y = \underset{k \in \{ 1, \dots, K\}}{argmax} \ p(C_k) \prod_{i=1}^{n} p(x_i|C_k)
+\]
+
+\subsection{Parameter estimation and event model}  \label{parameter-estimation}
+
+A class's prior $p(C_k)$ can be computed by calculation an estimate for the class probability from the training set.
+
+To estimate the parameters for a feature's distribution, one must assume a distribution from the training set.
+
+The assumptions on distributions of features are called the \textit{event model} of the Naive Bayes classifier.
+
+For discrete features, \textit{Multinomial} or \textit{Bernoulli} distributions are popular. For continuous features, it is typical to assume a \textit{Gaussian} distribution.
+
+\section{Implementation in Haskell} \label{implementation-in-haskell}
+
+Haskell is a general-purpose, statically typed, purely functional programming language with type inference and lazy evaluation.
+
+The idea behind this project was to build a minimal executable to run naive Bayes over an input dataset to show that building such a predictor
+in Haskell was feasible. But, at the end, it finished being a library that allow a final user to parse a dataset, train a model with the given dataset using
+a validation technique such as cross validation, and predict unlabeled samples using the trained model.
+
+The only drawback was that the Haskell ecosystem for Data Science is still immature \cite{stateofhaskell}. You can verified it by searching at
+hackage \cite{hackage} for the keyword "naive bayes". The only mature option for Bayesian probabilistic was \textit{monad-bayes} \cite{monad-bayes}.
+
+\subsection{The project} \label{project-building}
+
+The project was organized as a Haskell \textbf{library} rather than an executable so the code can be extended and use by other people for free.
+
+The main modules are the following:
+
+\begin{itemize} \label{modules-list}
+  \item Parser
+  \begin{itemize}
+    \item[$\ast$] Parser.Csv
+  \end{itemize}
+  \item Distrib
+  \item Validation
+  \item Classifier
+  \begin{itemize}
+    \item[$\ast$] Classifier.Dummy
+    \item[$\ast$] Classifier.NaiveBayes
+  \end{itemize}
+\end{itemize}
+
+Additionally, there is the Lib module that reexports all the previous modules so you don't need to export one by one.
+
+Apart from the library, the project also includes an \textbf{executable} to run a couple of test data sets to experiment a bit with the library.
+
+In the following sections, we are going to visit each module and its implementation.
+
+If you are not interested in the implementation, jump to the next section \ref{running-the-project}
+
+\subsubsection{Parser} \label{parser}
+
+The module \textit{Parser} contains a collection of parser for common storage format such as Comma-separated values (CSV).
+
+For now, the only implemented parser is for CSV. This parser uses the library cassava \cite{cassava} to levarage the work of parsing a csv file.
+
+\begin{minted}[xleftmargin=20pt,linenos,bgcolor=codegray]{haskell}
+parseCsvFile
+    :: Csv.FromRecord a
+    => FilePath -> HasHeader -> ExceptT String IO [a]
+parseCsvFile fp hasHeader = do
+  liftEither (checkExtension fp)
+  lbs <- liftIO (LBSC.readFile fp)
+  liftEither $ fmap V.toList (Csv.decode hasHeader lbs)
+\end{minted}
+
+\subsubsection{Distrib} \label{distrib}
+
+In the module \textit{Distrib} you will find common distributions such as Uniform, Gaussian, Gamma, Beta, Categorical, Geometric, Poisson, etc.
+
+\begin{minted}[xleftmargin=20pt,linenos,bgcolor=codegray]{haskell}
+data Distrib where
+  Distrib :: ContDistr d => d -> Distrib
+\end{minted}
+
+For now, you will only find the \textbf{Normal distribution} for numerical variables and the probability density function of it.
+
+\begin{minted}[xleftmargin=20pt,linenos,bgcolor=codegray]{haskell}
+data Distrib where
+-- | We don't know much about our numeric variable
+-- so we will assume normallity to simplify the implementation.
+compNormalDistr :: [Double] -> Distrib
+compNormalDistr xs =
+  Distrib (normalDistr mean' stdDev')
+    where
+      v = VU.fromList xs
+      mean' = Statistics.mean v
+      stdDev'  = max 0.1 (Statistics.stdDev v)
+
+-- | Probability Density Function
+pdf :: Distrib -> Double -> Probability
+pdf (Distrib d) = Probability . density d
+\end{minted}
+
+\subsubsection{Validation} \label{validation}
+
+The module \textit{Validation} implements model validation techniques such as simple sample validation, cross validation, bootstrapping validation, etc.
+
+The current implementation only includes cross validation.
+
+\begin{minted}[xleftmargin=20pt,linenos,bgcolor=codegray]{haskell}
+-- | X-Validation testing algorithm
+--
+-- Notice that every subset of <training, test> is different
+-- and generates a new classifier, so the score is not for a
+-- single classifier, but for many.
+crossValidation
+    :: forall c. Classifier c
+    => [(Sample, Class)] -- ^ All Samples
+    -> Proxy c
+    -> Score
+crossValidation allSamples _ =
+  let groups = leaveOneOutN (groupBy' 10 allSamples)
+  in foldMap test groups
+    where
+      test (trainingSet, testSet) =
+        let classifier = (train trainingSet) :: c
+         in foldMap (predictAndGetScore classifier) testSet
+
+      predictAndGetScore classifier (sample, clazz) =
+        let predictions = predict sample classifier
+            cmp = (\(_, p1) (_, p2) ->
+                    (_probability p1) `compare` (_probability p2))
+            (pClazz, _) = maximumBy cmp predictions
+         in
+            if pClazz == clazz then hit' else miss'
+\end{minted}
+
+\subsubsection{Classifier} \label{classifier}
+
+In the module \textit{Classifier} the user will find the basic interface of all classifiers
+
+\begin{minted}[xleftmargin=20pt,linenos,bgcolor=codegray]{haskell}
+class Classifier c where
+  -- | Given a training set returns a trained classifier
+  train :: [(Sample, Class)] -> c
+  -- | Given a random sample, predict a class
+  predict :: Sample -> c -> [(Class, Probability)]
+\end{minted}
+
+The following classifier are currently implemented
+
+\begin{itemize}
+  \item A random classifier on \textit{Classifier.Dummy}
+  \item A random classifier on \textit{Classifier.NaiveBayes}
+\end{itemize}
+
+The Naive Bayes classifier has the following structure
+
+\begin{minted}[xleftmargin=20pt,linenos,bgcolor=codegray]{haskell}
+data NaiveBayes = NaiveBayes
+  { labels  :: [Class] -- ^ All labels
+  , priors  :: Map Class Probability
+  , distrib :: Map Class (Map Index Distrib)
+  }
+
+instance Classifier NaiveBayes where
+  train :: [(Sample, Class)] -> NaiveBayes
+  train = trainNaiveBayes
+  {-# INLINE train #-}
+
+  predict :: Sample -> NaiveBayes -> [(Class, Probability)]
+  predict = predictNaiveBayes
+  {-# INLINE predict #-}
+\end{minted}
+
+The source code can be found on github \cite{naive-bayes-classifier}.
+
+\subsection{Project testing} \label{project-testing}
+
+\subsubsection{Compiling the project} \label{compiling}
+
+Before running the project, we need to compile it.
+
+I made the effort to simplify compilation and dependency management using nix \cite{nix}.
+Nix is a purely functional package manager that, among other things, allow us to compile Haskell projects in a pure deterministic way.
+
+In order to compile the project you need to follow the following steps:
+
+\begin{enumerate}
+  \item Install nix in your local machine
+    \begin{minted}{bash}
+      $ curl https://nixos.org/nix/install | sh
+    \end{minted}
+  \item Compile the project using nix
+    \begin{minted}{bash}
+      $ nix-build
+    \end{minted}
+  \item Run the executable on the input datasets
+    \begin{minted}{bash}
+      $ ./result/bin/naive-bayes-classifier
+    \end{minted}
+\end{enumerate}
+
+The compilation steps are only for UNIX systems.
+
+\subsubsection{Running the classifier} \label{compiling}
+
+To test the implementation I added two data sets randomly selected from Kaggel \cite{kaggel}:
+
+\begin{itemize}
+  \item Wine quality \cite{wine-quality}
+  \item Wine origin \cite{wine-origin}
+\end{itemize}
+
+The results are the following:
+
+\begin{minted}[xleftmargin=20pt,linenos,bgcolor=codegray]{bash}
+---------Dataset: wine-quality
+#Classes: 6
+#Total of samples: 1599
+Score {hit = 878, miss = 721, total = 1599}
+Accuracy: 54.97 %
+
+---------Dataset: wine-origin
+#Classes: 3
+#Total of samples: 178
+Score {hit = 170, miss = 8, total = 178}
+Accuracy: 95.50 %
+\end{minted}
+
+The accuracy for the first dataset is low, $54.97\%$.
+
+The accuracy for the second dataset is very high, $95.50\%$.
+
+I did not spent time analyzing why Naive Bayes performs poor on the first dataset but, in contrast, performs extremly well on the second one as it was not the objective
+of this delivery but it would something nice to do as a future project.
+
+\section{Conclusion} \label{conclusion}
+
+This library is a proof of concept that Naive Bayes classifier can be easily coded in Haskell in about 700 lines of code with the benefits of static correctness, friendly and robust refactoring, high level abstractions, high performance, ... Haskell is a suitable language to build such a probabilistic models.
+
+\section{Future work} \label{future-work}
+
+Regarding to this project, there is a lot of margin for improvement. The current implementation of the library is missing a well defined structure which leads
+to non composable code that is ready hard to extend. Also, the library is missing a lot of features such as other parsers, distributions, validation and classifiers.
+
+Regarding to the Haskell ecosystem, there is a lot of work to be on the Data Science domain to be at the same level as other languages such as R or Python. This project is
+a very little step towards a more mature haskell ecosystem. Early adopter companies such as \href{https://www.tweag.io/}{tweag.io} are working hard to bring more libraries to the ecosystem and make Haskell a mature enough place to start working on Data Science in it.
+
+\begin{thebibliography}{9}
+\bibitem{stateofhaskell} Gabriel Gonzalez. 2020. State of the Haskell ecosystem. \url{https://github.com/Gabriel439/post-rfc/blob/master/sotu.md}
+\bibitem{hackage} hackage: The Haskell Package Repository. \url{https://docs.haskellstack.org/en/stable/README/}
+\bibitem{monad-bayes} monad-bayes: A library for probabilistic programming. \url{https://hackage.haskell.org/package/monad-bayes}
+\bibitem{cassava} cassava: A CSV parsing and encoding library. \url{https://hackage.haskell.org/package/cassava}
+\bibitem{naive-bayes-classifier} naive-bayes-classifier \url{https://github.com/monadplus/naive-bayes-classifier}
+\bibitem{kaggel} Kaggel datasets \url{https://www.kaggle.com/datasets}
+\bibitem{wine-quality} Wine quality \url{https://www.kaggle.com/uciml/red-wine-quality-cortez-et-al-2009#winequality-red.csv}
+\bibitem{wine-origin} Wine origin \url{https://archive.ics.uci.edu/ml/datasets/Wine}
+\bibitem{kaggel} Kaggel datasets \url{https://www.kaggle.com/datasets}
+\bibitem{nix} Nix: a purely functional package manager \url{https://nixos.org/nix/}
+\end{thebibliography}
+
+\end{document}
